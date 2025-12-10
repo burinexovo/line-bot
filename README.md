@@ -1,2 +1,5 @@
 # line-bot
-Some line bot example.
+
+![Python Version](https://img.shields.io/badge/python-%3E3.10-blue)
+
+Some line-bot example.

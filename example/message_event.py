@@ -1,54 +1,70 @@
-# 載入 flask 模組中的 Flask, request, abort
+import os
+
 from flask import Flask, request, abort
-# 載入 linebot 模組中的 LineBotApi（Line Token）, WebhookHandler（Line Secret）
-from linebot import (
-    LineBotApi, WebhookHandler
+
+from linebot.v3 import (
+    WebhookHandler
 )
-# 載入 linebot.exceptions 模組中的 InvalidSignatureError（錯誤偵錯用的）
-from linebot.exceptions import (
+from linebot.v3.exceptions import (
     InvalidSignatureError
 )
-# 載入 linebot.models 模組中的 MessageEvent, TextMessage, TextSendMessage
-from linebot.models import (
-    MessageEvent, TextMessage, TextSendMessage,
+from linebot.v3.messaging import (
+    Configuration,
+    ApiClient,
+    MessagingApi,
+    ReplyMessageRequest,
+    TextMessage
 )
-# 載入 json 模組（格式化輸出結果）
-import json
+from linebot.v3.webhooks import (
+    MessageEvent,
+    TextMessageContent
+)
+
+from dotenv import load_dotenv
 
 
-# 建立 application 物件
 app = Flask(__name__)
-# LINE BOT-Channel Access Token
-line_bot_api = LineBotApi("CHANNEL_ACCESS_TOKEN")
-# LINE BOT-Channel Secret
-handler = WebhookHandler("CHANNEL_SECRET")
 
-# 監聽所有來自 /callback 的 Post Request
-@app.route("/callback", methods=["POST"])
+load_dotenv()
+
+LINE_ACCESS_TOKEN = os.getenv("LINE_ACCESS_TOKEN")
+LINE_CHANNEL_SECRET = os.getenv("LINE_CHANNEL_SECRET")
+
+configuration = Configuration(access_token=LINE_ACCESS_TOKEN)
+handler = WebhookHandler(LINE_CHANNEL_SECRET)
+
+
+@app.route("/callback", methods=['POST'])
 def callback():
-    # Get X-Line-Signature header value
-    signature = request.headers["X-Line-Signature"]
-    # 將接收到的請求轉換為文字
+    # get X-Line-Signature header value
+    signature = request.headers['X-Line-Signature']
+
+    # get request body as text
     body = request.get_data(as_text=True)
-    # 將接收到的資訊轉為 JSON 格式
-    json_data = json.loads(body)
-    # 格式化 json_data 讓輸出結果增加可讀性
-    json_str = json.dumps(json_data, indent=4)
-    # 印出來檢視一下
-    print(json_str)
-    # Handle Webhook body
+    app.logger.info("Request body: " + body)
+
+    # handle webhook body
     try:
-        # 如果 Channel Access Token 或 Channel Secret 發生錯誤
-        # 會進入到 except InvalidSignatureError: 區塊。
         handler.handle(body, signature)
     except InvalidSignatureError:
-        # 如果有錯誤代表 Channel Access Token 與 Channel Secret
-        # 可能輸入錯誤或無效。
-        # 處理錯誤，abort 400。
+        app.logger.info(
+            "Invalid signature. Please check your channel access token/channel secret.")
         abort(400)
-    # 返回 OK，LINE Developers 收到 OK 後代表 Webhook 執行沒問題
-    return "OK"
-        
-    
+
+    return 'OK'
+
+
+@handler.add(MessageEvent, message=TextMessageContent)
+def handle_message(event):
+    with ApiClient(configuration) as api_client:
+        line_bot_api = MessagingApi(api_client)
+        line_bot_api.reply_message_with_http_info(
+            ReplyMessageRequest(
+                reply_token=event.reply_token,
+                messages=[TextMessage(text=event.message.text)]
+            )
+        )
+
+
 if __name__ == "__main__":
-    app.run(port=3000)
+    app.run()
