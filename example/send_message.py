@@ -1,6 +1,7 @@
+import os
 import time
 import uuid
-import os
+from datetime import datetime
 import linebot.v3.messaging
 from linebot.v3.messaging.models.broadcast_request import BroadcastRequest
 from pprint import pprint
@@ -19,7 +20,6 @@ load_dotenv()
 CHANNEL_ACCESS_TOKEN = os.getenv("LINE_ACCESS_TOKEN")
 configuration = Configuration(access_token=CHANNEL_ACCESS_TOKEN)
 
-print(CHANNEL_ACCESS_TOKEN)
 
 def broadcast_message(msg):
     with ApiClient(configuration) as api_client:
@@ -36,11 +36,16 @@ def broadcast_message(msg):
                 broadcast_request,
                 x_line_retry_key=str(uuid.uuid4())
             )
-            print("成功廣播！結果如下：")
-
+            print("推播完成")
         except Exception as e:
             print("發生錯誤：", e)
 
 
+def push_message(msg):
+    pass
+
+
 if __name__ == "__main__":
-    broadcast_message(msg="有客人來了")
+    curr_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    broadcast_message(msg=f"推播測試 {curr_time}")
+    push_message(msg=f"測試 {curr_time}")
