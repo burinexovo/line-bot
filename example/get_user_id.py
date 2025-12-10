@@ -36,10 +36,29 @@ handler = WebhookHandler(LINE_CHANNEL_SECRET)
 
 # 載入 JSON（如果沒有檔案就建立空 dict）
 def load_users():
+    # 檔案不存在 → 建新檔 {}
     if not os.path.exists(USER_FILE):
+        with open(USER_FILE, "w", encoding="utf-8") as f:
+            f.write("{}")
         return {}
-    with open(USER_FILE, "r", encoding="utf-8") as f:
-        return json.load(f)
+
+    # 檔案存在，但為空
+    if os.path.getsize(USER_FILE) == 0:
+        with open(USER_FILE, "w", encoding="utf-8") as f:
+            f.write("{}")
+        return {}
+
+    # 嘗試讀取 JSON
+    try:
+        with open(USER_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+
+    # 如果 JSON 被亂碼影響或格式錯誤 → 自動重建
+    except json.JSONDecodeError:
+        print("⚠ users.json 損壞，已自動重建為空文件。")
+        with open(USER_FILE, "w", encoding="utf-8") as f:
+            f.write("{}")
+        return {}
 
 
 # 儲存 JSON
@@ -53,7 +72,8 @@ def save_user_if_new(users, uid, username):
     if uid not in users:
         users[uid] = {
             "name": username,
-            "added_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            "added_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            # "enabled": True,
         }
         print("新增使用者：", uid, username)
         return True
